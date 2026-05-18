@@ -9,7 +9,7 @@ const requiredTextVars = [
   "CLOUDFLARE_API_TOKEN",
   "CHAT_MODEL",
   "MEMORY_FILTER_MODEL",
-  "MEMORY_MODEL",
+  "SUMMARY_MODEL",
   "VISION_MODEL"
 ] as const;
 

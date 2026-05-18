@@ -95,9 +95,8 @@ Deploy command:     npm run deploy:cloudflare
 | `MEMORY_FILTER_MAX_OUTPUT` | `4` | 小秘书最多返回几条记忆 |
 | `MEMORY_FILTER_OUTPUT_CHARS` | `300` | 小秘书每条返回内容最多多少字 |
 | `MEMORY_FILTER_MAX_TOKENS` | `1400` | 小秘书 JSON 输出上限，避免多条压缩结果被 700 tokens 截断 |
-| `MEMORY_MODEL` | `deepseek/deepseek-v4-flash` | 记忆抽取 |
-| `VISION_MODEL` | `google-ai-studio/gemini-3-flash-preview` | 看图 |
 | `SUMMARY_MODEL` | `deepseek/deepseek-v4-pro` | 每日整理小秘书，负责把 D1 临时聊天整理入长期记忆 |
+| `VISION_MODEL` | `google-ai-studio/gemini-3-flash-preview` | 看图；普通聊天和导盲犬 API 都用它 |
 | `EMBEDDING_MODEL` | `workers-ai/@cf/google/embeddinggemma-300m` | 向量嵌入，默认走 Workers AI |
 | `EMBEDDING_DIMENSIONS` | `768` | 非 Workers AI embedding 请求的目标维度 |
 
@@ -211,9 +210,8 @@ https://<你的 Worker 地址>/health
 | `MEMORY_FILTER_MAX_OUTPUT` | `4` | 小秘书最终返回记忆上限 |
 | `MEMORY_FILTER_OUTPUT_CHARS` | `300` | 小秘书每条返回内容最多多少字 |
 | `MEMORY_FILTER_MAX_TOKENS` | `1400` | 小秘书 JSON 输出上限，避免多条压缩结果被截断 |
-| `MEMORY_MODEL` | `deepseek/deepseek-v4-flash` | 记忆抽取 |
-| `VISION_MODEL` | `google-ai-studio/gemini-3-flash-preview` | 看图 |
 | `SUMMARY_MODEL` | `deepseek/deepseek-v4-pro` | 每日整理小秘书，负责把 D1 临时聊天整理入长期记忆 |
+| `VISION_MODEL` | `google-ai-studio/gemini-3-flash-preview` | 看图；普通聊天和导盲犬 API 都用它 |
 | `EMBEDDING_MODEL` | `workers-ai/@cf/google/embeddinggemma-300m` | 向量嵌入，默认走 Workers AI |
 | `EMBEDDING_DIMENSIONS` | `768` | 非 Workers AI embedding 请求的目标维度 |
 
@@ -257,7 +255,6 @@ https://<你的 Worker 地址>/health
 | `PUBLIC_MODEL_NAME` | `companion` | 客户端看到的模型名 |
 | `MEMORY_MCP_API_KEY` | 空 | 纯记忆库 MCP 的单独钥匙 |
 | `GUIDE_DOG_API_KEY` | 空 | 无记忆导盲犬 API 的单独钥匙 |
-| `GUIDE_DOG_MODEL` | `VISION_MODEL` 默认同款 | 导盲犬 API 专用模型 |
 
 ### 最容易踩的坑
 
@@ -411,7 +408,7 @@ POST /v1/guide-dog/chat/completions
 POST /guide-dog/v1/chat/completions
 ```
 
-只做 OpenAI-compatible 转发，默认优先用 `GUIDE_DOG_MODEL`，不填就用 `VISION_MODEL`/`CHAT_MODEL`。它不会保存消息，不会注入记忆，不会触发 Queue，适合单独做“看图描述/识别/辅助导航”。
+只做 OpenAI-compatible 转发，看图时使用 `VISION_MODEL`，否则使用 `CHAT_MODEL`。它不会保存消息，不会注入记忆，不会触发 Queue，适合单独做“看图描述/识别/辅助导航”。
 
 导盲犬 API 是纯转发入口，不走完整版的输出过滤；如果上游模型返回 `reasoning_content` 或其他思考字段，会原样交给客户端。
 
@@ -536,7 +533,7 @@ dash_to_comma:      —、——、– 改成 ，
     -> 如果当天聊天太多，就按 DAILY_DIGEST_MAX_MESSAGES 分批处理，最多连续跑 DAILY_DIGEST_MAX_RUNS 批
     -> 读取一批 Vectorize 旧 active 记忆作为参考
     -> 清理空/过短记忆
-    -> SUMMARY_MODEL/MEMORY_MODEL 生成固定格式日摘要
+    -> SUMMARY_MODEL 生成固定格式日摘要
     -> 日摘要默认只保存到 D1；important excerpt 可进入 Vectorize
     -> 新增少量高质量长期记忆
     -> 更新/删除冲突、重复、过期旧记忆

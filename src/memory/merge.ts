@@ -170,12 +170,13 @@ async function decideMemoryMerge(
   incoming: ExtractedMemory,
   candidates: MemoryApiRecord[]
 ): Promise<MemoryMergeDecision> {
-  if (!env.MEMORY_MODEL || candidates.length === 0) {
+  const model = env.SUMMARY_MODEL || env.MEMORY_MODEL;
+  if (!model || candidates.length === 0) {
     return chooseFallbackDecision(incoming, candidates);
   }
 
   const request: OpenAIChatRequest = {
-    model: env.MEMORY_MODEL,
+    model,
     messages: [
       {
         role: "system",
