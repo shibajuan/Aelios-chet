@@ -1,4 +1,5 @@
 import { authenticate } from "../auth/apiKey";
+import { oauthChallengeHeaders, withCors } from "./oauth";
 import { getOrCreateConversation } from "../db/conversations";
 import { saveIngestMessages } from "../db/messages";
 import { filterAndCompressMemories } from "../memory/filter";
@@ -61,6 +62,12 @@ function rpcError(id: JsonRpcId | undefined, code: number, message: string): Rec
     id: id ?? null,
     error: { code, message }
   };
+}
+
+function negotiateProtocolVersion(params: unknown): string {
+  const requested = isRecord(params) ? readString(params.protocolVersion) || "" : "";
+  const supported: string[] = ["2025-06-18", "2025-03-26", "2024-11-05"];
+  return supported.includes(requested) ? requested : "2025-06-18";
 }
 
 function textToolResult(data: unknown): Record<string, unknown> {
@@ -326,7 +333,7 @@ async function handleRpc(
 
   if (request.method === "initialize") {
     return rpcResult(request.id, {
-      protocolVersion: "2025-06-18",
+      protocolVersion: negotiateProtocolVersion(request.params),
       capabilities: { tools: { listChanged: false } },
       serverInfo: { name: "companion-memory-mcp", version: "0.1.0" }
     });
@@ -359,30 +366,34 @@ async function handleRpc(
 
 export async function handleMcp(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   if (request.method === "OPTIONS") {
-    return new Response(null, { status: 204 });
+    return withCors(new Response(null, { status: 204 }));
   }
 
   if (request.method === "GET") {
-    return json({
+    return withCors(json({
       name: "companion-memory-mcp",
       transport: "streamable-http",
       endpoint: new URL(request.url).pathname,
+      authorization: {
+        type: "oauth2",
+        protected_resource_metadata: `${new URL(request.url).origin}/.well-known/oauth-protected-resource`
+      },
       tools: getTools().map((tool) => tool.name)
-    });
+    }));
   }
 
   if (request.method !== "POST") {
-    return json({ error: "Method not allowed" }, { status: 405 });
+    return withCors(json({ error: "Method not allowed" }, { status: 405 }));
   }
 
   const auth = await authenticate(withTokenQuery(request), env);
-  if (!auth.ok) return rpcErrorResponse(null, -32001, "Unauthorized", 401);
+  if (!auth.ok) return rpcErrorResponse(request, null, -32001, "Unauthorized", 401);
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return rpcErrorResponse(null, -32700, "Parse error", 400);
+    return rpcErrorResponse(request, null, -32700, "Parse error", 400);
   }
 
   if (Array.isArray(body)) {
@@ -393,15 +404,22 @@ export async function handleMcp(request: Request, env: Env, ctx: ExecutionContex
           .map((item) => handleRpc(item, env, ctx, auth.profile))
       )
     ).filter((item): item is Record<string, unknown> => item !== null);
-    return results.length > 0 ? json(results) : new Response(null, { status: 202 });
+    return results.length > 0 ? withCors(json(results)) : withCors(new Response(null, { status: 202 }));
   }
 
-  if (!isRecord(body)) return rpcErrorResponse(null, -32600, "Invalid Request", 400);
+  if (!isRecord(body)) return rpcErrorResponse(request, null, -32600, "Invalid Request", 400);
 
   const result = await handleRpc(body, env, ctx, auth.profile);
-  return result ? json(result) : new Response(null, { status: 202 });
+  return result ? withCors(json(result)) : withCors(new Response(null, { status: 202 }));
 }
 
-function rpcErrorResponse(id: JsonRpcId | undefined, code: number, message: string, status: number): Response {
-  return json(rpcError(id, code, message), { status });
+function rpcErrorResponse(
+  request: Request,
+  id: JsonRpcId | undefined,
+  code: number,
+  message: string,
+  status: number
+): Response {
+  const headers = status === 401 ? oauthChallengeHeaders(request) : undefined;
+  return withCors(json(rpcError(id, code, message), { status, headers }));
 }

@@ -119,6 +119,8 @@ Settings
 | `CLOUDFLARE_API_TOKEN` | 你的 Cloudflare API Token | 让部署脚本和 Worker 管理 Vectorize |
 | `CHATBOX_API_KEY` | 你自己编一个密码，例如 `sk-my-memory-key` | 以后访问这个 Worker 用 |
 
+`CLOUDFLARE_API_TOKEN` 请尽量用 Secret 保存，不要写进仓库或截图里。它暴露后要立刻在 Cloudflare 里撤销并重建。
+
 `CHATBOX_API_KEY` 可以随便写一个你喜欢的，只要自己记住就行。
 比如：
 
@@ -280,6 +282,30 @@ MCP 地址：
 https://<你的 Worker 地址>/mcp?token=<MEMORY_MCP_API_KEY>
 ```
 
+如果你只是想先跑起来，也可以不单独加 `MEMORY_MCP_API_KEY`。MCP OAuth 会自动复用已有的
+`CHATBOX_API_KEY`。更推荐单独设置 `MEMORY_MCP_API_KEY`，这样以后可以只轮换 MCP 钥匙。
+
+Claude.ai、Claude 桌面/移动端、ChatGPT 这类官方远程 MCP 客户端，请填不带 query token 的地址：
+
+```
+https://<你的 Worker 地址>/mcp
+```
+
+连接时客户端会打开一个授权页面。输入 `MEMORY_MCP_API_KEY`；如果没设置它，就输入
+`CHATBOX_API_KEY`。授权成功后，客户端拿到的是 OAuth access token，不会把你的原始 key 放进 MCP URL。
+
+Claude Code、Codex、脚本和其他支持手动 header 的客户端，仍然可以继续用：
+
+```
+Authorization: Bearer <MEMORY_MCP_API_KEY 或 CHATBOX_API_KEY>
+```
+
+旧的 URL token 兼容方式也还保留：
+
+```
+https://<你的 Worker 地址>/mcp?token=<MEMORY_MCP_API_KEY 或 CHATBOX_API_KEY>
+```
+
 **无记忆导盲犬 API：**
 
 在 Cloudflare Variables 里加：
@@ -307,6 +333,9 @@ Model:      companion
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Account ID |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API Token，用于 setup、Vectorize list/get/delete |
 | `CHATBOX_API_KEY` | 客户端和管理面板连接密码 |
+
+`CLOUDFLARE_API_TOKEN` 建议保存为 Cloudflare Secret。部署脚本会从构建环境读取它，但不会再把它同步进
+`wrangler.toml` 的普通 `[vars]`。
 
 只用记忆库时，默认 embedding 和记忆筛选小秘书都走 Workers AI，不需要先配置 AI Gateway。
 

@@ -106,7 +106,13 @@ export interface KeyProfile {
 export interface AuthResult {
   ok: true;
   profile: KeyProfile;
-  keyName: "CHATBOX_API_KEY" | "IM_API_KEY" | "DEBUG_API_KEY" | "MEMORY_MCP_API_KEY" | "GUIDE_DOG_API_KEY";
+  keyName:
+    | "CHATBOX_API_KEY"
+    | "IM_API_KEY"
+    | "DEBUG_API_KEY"
+    | "MEMORY_MCP_API_KEY"
+    | "GUIDE_DOG_API_KEY"
+    | "MCP_OAUTH_ACCESS_TOKEN";
 }
 
 export interface OpenAIChatMessage {

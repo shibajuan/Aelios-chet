@@ -1,4 +1,5 @@
 import { KEY_PROFILES } from "../config/keyProfiles";
+import { verifyMcpAccessToken } from "./oauth";
 import type { AuthResult, Env } from "../types";
 
 function getBearerToken(request: Request): string | null {
@@ -27,6 +28,10 @@ export async function authenticate(request: Request, env: Env): Promise<AuthResu
 
   if (env.MEMORY_MCP_API_KEY && token === env.MEMORY_MCP_API_KEY) {
     return { ok: true, profile: KEY_PROFILES.mcp, keyName: "MEMORY_MCP_API_KEY" };
+  }
+
+  if (await verifyMcpAccessToken(env, token)) {
+    return { ok: true, profile: KEY_PROFILES.mcp, keyName: "MCP_OAUTH_ACCESS_TOKEN" };
   }
 
   if (env.GUIDE_DOG_API_KEY && token === env.GUIDE_DOG_API_KEY) {

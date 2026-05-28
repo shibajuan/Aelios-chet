@@ -7,6 +7,7 @@ import { handleGuideDogChatCompletions } from "./api/guideDog";
 import { handleIngestMessagesApi, handleMemories, handleSearchMemoriesApi } from "./api/memories";
 import { handleMcp } from "./api/mcp";
 import { handleModels } from "./api/models";
+import { handleOAuth } from "./api/oauth";
 import { runDailyMemoryDigest } from "./memory/dailyDigest";
 import { runMemoryRetention } from "./memory/retention";
 import { handleQueueMessage } from "./queue/consumer";
@@ -39,6 +40,9 @@ async function runDailyMemoryDigestBatches(env: Env, namespace: string): Promise
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    const oauthResponse = await handleOAuth(request, env);
+    if (oauthResponse) return oauthResponse;
 
     if (request.method === "GET" && (url.pathname === "/admin" || url.pathname === "/memory-admin")) {
       return handleAdmin();
