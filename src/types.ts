@@ -62,6 +62,8 @@ export interface Env {
   CACHE_DEFAULT_TTL_SECONDS?: string;
   CACHE_MAX_VALUE_BYTES?: string;
   SUMMARY_MODEL?: string;
+  BARK_URL?: string;
+  BARK_MESSAGES_URL?: string;
 }
 
 export interface MemoryMaintenanceQueueMessage {

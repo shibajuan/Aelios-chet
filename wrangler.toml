@@ -5,7 +5,13 @@ keep_vars = true
 
 [triggers]
 # Cloudflare cron uses UTC. 20:10 UTC is 04:10 in Singapore/China time.
-crons = ["10 20 * * *"]
+crons = [
+  "10 20 * * *",
+  # Love notes: every 15 minutes from 08:00 to 23:59 Asia/Shanghai.
+  "*/15 0-15 * * *",
+  # Love bombing: 11:00 and 20:00 Asia/Shanghai.
+  "0 3,12 * * *"
+]
 
 [ai]
 binding = "AI"
@@ -46,10 +52,11 @@ ANTHROPIC_CACHE_TTL = "5m"
 # keep this as "messages". If the base_url is only the root domain, use
 # "v1/messages".
 CUSTOM_ANTHROPIC_MESSAGES_PATH = "messages"
+BARK_MESSAGES_URL = "https://raw.githubusercontent.com/shibajuan/Aelios-chet/main/data/bark-messages.json"
 
 # Private/account-specific variables live in the Cloudflare Dashboard:
 # AI_GATEWAY_BASE_URL, CHATBOX_API_KEY, MEMORY_MCP_API_KEY,
-# GUIDE_DOG_API_KEY, CF_AIG_TOKEN.
+# GUIDE_DOG_API_KEY, CF_AIG_TOKEN, BARK_URL.
 # D1 binding is auto-filled by `npm run setup:cloudflare`.
 
 [[vectorize]]
@@ -60,7 +67,6 @@ index_name = "memo-kb"
 binding = "MEMORY_QUEUE"
 queue = "companion-memory"
 
-[[queues.consumers]]
-queue = "companion-memory"
-max_batch_size = 10
-max_batch_timeout = 30
+# The companion-memory queue already has a Worker consumer in Cloudflare.
+# Keep this out of deploy config so wrangler does not try to add a duplicate
+# consumer on every deploy.

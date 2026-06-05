@@ -10,9 +10,14 @@ import { handleModels } from "./api/models";
 import { handleOAuth } from "./api/oauth";
 import { runDailyMemoryDigest } from "./memory/dailyDigest";
 import { runMemoryRetention } from "./memory/retention";
+import { runLoveBombingCron, runLoveNotesPoolCron } from "./push/barkCron";
 import { handleQueueMessage } from "./queue/consumer";
 import type { Env, QueueMessage } from "./types";
 import { openAiError } from "./utils/json";
+
+const DAILY_MEMORY_CRON = "10 20 * * *";
+const LOVE_NOTES_POOL_CRON = "*/15 0-15 * * *";
+const LOVE_BOMBING_CRON = "0 3,12 * * *";
 
 function getDailyDigestNamespace(env: Env): string {
   return env.DAILY_DIGEST_NAMESPACE?.trim() || "default";
@@ -121,15 +126,34 @@ export default {
     }
   },
 
-  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     const namespace = getDailyDigestNamespace(env);
-    ctx.waitUntil(
-      Promise.all([
-        runDailyMemoryDigestBatches(env, namespace),
-        runMemoryRetention(env, namespace)
-      ]).then(([digest, retention]) => {
-        console.log("scheduled daily memory maintenance", { namespace, digest, retention });
-      })
-    );
+    const tasks: Promise<unknown>[] = [];
+
+    if (controller.cron === DAILY_MEMORY_CRON) {
+      tasks.push(
+        Promise.all([
+          runDailyMemoryDigestBatches(env, namespace),
+          runMemoryRetention(env, namespace)
+        ]).then(([digest, retention]) => {
+          console.log("scheduled daily memory maintenance", { namespace, digest, retention });
+        })
+      );
+    }
+
+    if (controller.cron === LOVE_NOTES_POOL_CRON) {
+      tasks.push(runLoveNotesPoolCron(env));
+    }
+
+    if (controller.cron === LOVE_BOMBING_CRON) {
+      tasks.push(runLoveBombingCron(env));
+    }
+
+    if (tasks.length === 0) {
+      console.log("scheduled cron has no handler", { cron: controller.cron, namespace });
+      return;
+    }
+
+    ctx.waitUntil(Promise.all(tasks));
   }
 };
