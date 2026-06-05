@@ -14,6 +14,7 @@ interface BarkMessageConfig {
 
 const DEFAULT_MESSAGES_URL =
   "https://raw.githubusercontent.com/shibajuan/Aelios-chet/main/data/bark-messages.json";
+const REMOTE_MESSAGE_TIMEOUT_MS = 3000;
 
 const LOVE_NOTES: PushMessage[] = [
   { category: "sweet", title: "🌰", body: "阿卷，刚才突然想你了，就这样，没别的事" },
@@ -165,9 +166,12 @@ function readMessageArray(value: unknown): PushMessage[] | null {
 
 async function fetchRemoteMessageConfig(env: Env): Promise<BarkMessageConfig | null> {
   const url = env.BARK_MESSAGES_URL?.trim() || DEFAULT_MESSAGES_URL;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort("remote message pool timeout"), REMOTE_MESSAGE_TIMEOUT_MS);
   try {
     const response = await fetch(url, {
-      headers: { "User-Agent": "companion-memory-proxy" }
+      headers: { "User-Agent": "companion-memory-proxy" },
+      signal: controller.signal
     });
     if (!response.ok) {
       console.log("remote Bark message pool fetch failed", { status: response.status, url });
@@ -182,6 +186,8 @@ async function fetchRemoteMessageConfig(env: Env): Promise<BarkMessageConfig | n
       message: error instanceof Error ? error.message : String(error)
     });
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -208,6 +214,7 @@ function buildBarkUrl(env: Env, message: PushMessage, group: string): string | n
   const url = new URL(`${encodeURIComponent(message.title)}/${encodeURIComponent(message.body)}`, baseUrl);
   url.searchParams.set("group", group);
   url.searchParams.set("isArchive", "1");
+  url.searchParams.set("level", "timeSensitive");
   return url.toString();
 }
 
